@@ -37,10 +37,10 @@ export async function POST(request: Request) {
 
   try {
     const blob = await put(name, request.body, {
-      access: "public",
+      access: "private",
       addRandomSuffix: false,
     });
-    return NextResponse.json(blob, { status: 201 });
+    return NextResponse.json({ url: `/api/images/${encodeURIComponent(blob.pathname)}`, pathname: blob.pathname }, { status: 201 });
   } catch (e) {
     console.error("[upload] put failed:", e);
     return NextResponse.json({ error: "อัปโหลดไม่สำเร็จ" }, { status: 500 });
