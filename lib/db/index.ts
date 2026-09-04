@@ -1,11 +1,20 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { schema } from "./schema";
 
 const prismaGlobal = globalThis as typeof globalThis & {
   __menuOnlinePrisma?: PrismaClient;
 };
 
-export const prisma = prismaGlobal.__menuOnlinePrisma ?? new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export const prisma =
+  prismaGlobal.__menuOnlinePrisma ??
+  new PrismaClient({
+    adapter,
+  });
 prismaGlobal.__menuOnlinePrisma = prisma;
 
 const modelNames = {
