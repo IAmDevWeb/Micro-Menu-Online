@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  kitchen
+  cashier
+}
+
+enum OrderStatus {
+  pending
+  preparing
+  served
+  paid
+  cancelled
+}
+
+enum OrderSource {
+  self
+  staff
+}
+
+enum ItemStatus {
+  pending
+  preparing
+  done
+}
+
+enum PaymentMethod {
+  cash
+  card
+  qr
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(cashier)
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  createdOrders  Order[]  @relation("createdBy")
+  cancelledOrders Order[] @relation("cancelledBy")
+  payments       Payment[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  products  Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          String     @id @default(uuid())
+  categoryId  String     @map("category_id")
+  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name        String
+  description String     @default("")
+  price       Float
+  imageUrl    String?    @map("image_url")
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  orderItems  OrderItem[]
+
+  @@index([categoryId], map: "products_category_idx")
+  @@map("products")
+}
+
+model Table {
+  id          String   @id @default(uuid())
+  tableNumber String   @unique @map("table_number")
+  qrToken     String   @unique @map("qr_token")
+  createdAt   DateTime @default(now()) @map("created_at")
+  orders      Order[]
+
+  @@map("tables")
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  tableId       String      @map("table_id")
+  table         Table       @relation(fields: [tableId], references: [id])
+  status        OrderStatus @default(pending)
+  source        OrderSource @default(self)
+  customerNote  String?     @map("customer_note")
+  createdById   String?     @map("created_by_id")
+  createdBy     User?       @relation("createdBy", fields: [createdById], references: [id])
+  total         Float       @default(0)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  paidAt        DateTime?   @map("paid_at")
+  cancelledAt   DateTime?   @map("cancelled_at")
+  cancelledById String?     @map("cancelled_by_id")
+  cancelledBy   User?       @relation("cancelledBy", fields: [cancelledById], references: [id])
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@index([tableId], map: "orders_table_idx")
+  @@index([status], map: "orders_status_idx")
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String     @id @default(uuid())
+  orderId   String     @map("order_id")
+  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?    @map("product_id")
+  product   Product?   @relation(fields: [productId], references: [id])
+  productName String    @map("product_name")
+  price     Float
+  qty       Int        @default(1)
+  note      String?
+  status    ItemStatus @default(pending)
+
+  @@index([orderId], map: "order_items_order_idx")
+  @@map("order_items")
+}
+
+model Payment {
+  id           String        @id @default(uuid())
+  orderId      String        @map("order_id")
+  order        Order         @relation(fields: [orderId], references: [id])
+  amount       Float
+  method       PaymentMethod @default(cash)
+  receivedById String?       @map("received_by_id")
+  receivedBy   User?         @relation(fields: [receivedById], references: [id])
+  paidAt       DateTime      @default(now()) @map("paid_at")
+
+  @@index([orderId], map: "payments_order_idx")
+  @@index([paidAt], map: "payments_paidat_idx")
+  @@map("payments")
+}

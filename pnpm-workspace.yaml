@@ -1,6 +1,8 @@
 allowBuilds:
   better-sqlite3: true
   esbuild: true
+  msgpackr-extract: set this to true or false
   sharp: false
   unrs-resolver: false
+  workerd: set this to true or false
 storeDir: /home/neon13/snap/code/255/.local/share/pnpm/store/v11

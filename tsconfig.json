@@ -19,7 +19,10 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "drizzle-orm": ["./lib/drizzle-compat"],
+      "drizzle-orm/*": ["./lib/drizzle-compat"],
+      "drizzle-orm/pg-core": ["./lib/drizzle-compat"]
     }
   },
   "include": [

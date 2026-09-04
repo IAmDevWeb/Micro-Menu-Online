@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^\\(docker --version \\|\\| true\\) && echo '---' && \\(docker ps --format '\\{\\{\\.Names\\}\\} \\{\\{\\.Status\\}\\}' 2>/dev/null \\|\\| true\\) && echo '---' && \\(which postgres \\|\\| true\\) && echo '---' && \\(which psql \\|\\| true\\)$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
