@@ -1,6 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import { requireRole } from "@/lib/auth/rbac";
 
 const ALLOWED = new Set([
@@ -48,11 +47,19 @@ export async function POST(request: Request) {
   }
 
   const ext = EXT[type] || "";
-  const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+  const name = `product-images/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(path.join(uploadDir, name), bytes);
-
-  return NextResponse.json({ url: `/uploads/${name}` }, { status: 201 });
+  try {
+    const { url } = await put(name, Buffer.from(bytes), {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: type,
+    });
+    return NextResponse.json({ url }, { status: 201 });
+  } catch {
+    return NextResponse.json(
+      { error: "อัปโหลดไม่สำเร็จ" },
+      { status: 500 }
+    );
+  }
 }
