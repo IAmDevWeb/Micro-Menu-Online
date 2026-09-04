@@ -1,145 +1,146 @@
-# Menu Online — ระบบสั่งอาหารผ่าน QR Code
+# Microtronic Menu Online
 
-ระบบสั่งอาหารออนไลน์สำหรับร้านอาหารที่ให้ลูกค้าสแกน QR ที่โต๊ะเพื่อเลือกเมนูและส่งคำสั่งแบบเรียลไทม์ ไปยังหน้าจอครัวและแคชเชียร์ พร้อมระบบยืนยันตัวตน หลายบทบาท รายงานยอดขายรายวัน และประมวลผลชำระเงินแบบเบ็ดเสร็จ
+ระบบสั่งอาหารออนไลน์ผ่าน QR Code สำหรับร้านอาหาร ร้านกาแฟ ร้านเบเกอรี่ และธุรกิจ F&B ทุกประเภท
 
-ปัจจุบันโครงการใช้โครงสร้างหลักแบบ Next.js App Router ร่วมกับ Prisma ORM และฐานข้อมูล PostgreSQL ผ่าน Prisma Postgres / Vercel environment variables โดยยังคงมีบางส่วนของโค้ดที่รองรับ Supabase สำหรับ fallback หรือฟีเจอร์ที่ยังใช้งานต่อเนื่องได้
+> สแกน QR → เลือกเมนู → สั่งอาหาร → ครัวรู้ทันที — ไม่ต้องรอพนักงาน
+
+---
+
+## สิ่งที่ระบบนี้ทำได้
+
+- ลูกค้าสแกน QR Code ที่โต๊ะ แล้วเปิดเมนูบนมือถือได้ทันที
+- ออเดอร์ส่งตรงถึงหน้าจอครัวและแคชเชียร์แบบเรียลไทม์
+- พนักงานจัดการเมนู ราคา และสถานะคำสั่งได้จาก Dashboard
+- ติดตามยอดขายรายวันและประวัติการสั่งซื้อทั้งหมด
+- รองรับชำระเงินเงินสด / บัตร / QR พร้อมใบเสร็จอัตโนมัติ
+- ลดคิว ลดเวลารอ เพิ่มความสะดวกให้ลูกค้าและร้าน
+
+---
+
+## ฟีเจอร์หลัก
+
+| สำหรับลูกค้า | สำหรับร้าน |
+|---|---|
+| สแกน QR Code เปิดเมนู | จัดการเมนู หมวดหมู่ รูปภาพ ราคา |
+| เลือกเมนู + เพิ่มหมายเหตุ | Dashboard ครัว + แคชเชียร์ |
+| ดูสถานะออเดอร์แบบเรียลไทม์ | ติดตามสถานะ: pending → preparing → served → paid |
+| สั่งเพิ่มได้ตลอด | รายงานยอดขายรายวัน |
+| ใบเสร็จรับเงิน | จัดการโต๊ะ + QR Code + พนักงาน |
+| | รองรับหลาย Role: admin / kitchen / cashier |
+
+---
 
 ## เทคโนโลยีที่ใช้
 
-- Next.js 16.3 + React 19 + TypeScript
-- Prisma ORM + PostgreSQL
-- Tailwind CSS v4 สำหรับ UI
-- JWT session + bcrypt สำหรับยืนยันตัวตน
-- QR code generation สำหรับโต๊ะอาหาร
-- Realtime / storage support จาก Supabase สำหรับบางฟีเจอร์ที่ยังมีการใช้งานต่อ
-- pnpm สำหรับ package management
+| | |
+|---|---|
+| Framework | Next.js 16 + React 19 + TypeScript |
+| Database | Prisma ORM + PostgreSQL |
+| Styling | Tailwind CSS v4 |
+| Auth | JWT Session + bcrypt |
+| QR Code | qrcode.react |
+| Deploy | Vercel (Prisma Postgres) |
 
-## สถานะปัจจุบันของโปรเจกต์
+---
 
-- โครงสร้างฐานข้อมูลหลักถูกย้ายสู่ Prisma schema ใน `prisma/schema.prisma`
-- ตัวแปรฐานข้อมูลหลักใช้ `DATABASE_URL`
-- สำหรับการ deploy บน Vercel ใช้ค่า environment variable จาก Prisma Postgres / Vercel project
-- โค้ดยังมีการอ้างอิง Supabase ในบางส่วนของระบบสำหรับ realtime และ upload fallback ซึ่งยังสามารถใช้ได้ตามสภาพแวดล้อม
+## ราคา
 
-## เริ่มต้นใช้งาน
+### แบบรายเดือน (SaaS)
 
-### 1. ติดตั้ง dependencies
+| Package | ราคา/เดือน | เนื้อหา |
+|---------|-----------|---------|
+| **Basic** | **990** บาท | QR Menu + Dashboard + รายงานพื้นฐาน |
+| **Pro** | **1,990** บาท | + Custom branding + รายงานละเอียด + support |
+| **Enterprise** | **3,990** บาท | + Multi-branch + API + training + ดูแลตลอดอายุการใช้งาน |
 
-```bash
-pnpm install
-```
+> ทดลองใช้ฟรี 14 วัน ไม่ต้องใช้บัตรเครดิต
 
-### 2. ตั้งค่า environment
+### แบบขายขาด (One-Time)
 
-สร้างไฟล์ `.env` จากค่า environment ของเครื่องหรือ Vercel แล้วตั้งค่าตัวแปรต่อไปนี้
+| Package | ราคา | เหมาะสำหรับ |
+|---------|------|-------------|
+| **Starter** | 29,000 - 39,000 บาท | ร้านเล็ก 1-2 สาขา |
+| **Standard** | 49,000 - 69,000 บาท | ร้านที่ต้องการครบวงจร + custom branding |
+| **Premium** | 79,000 - 129,000 บาท | Multi-branch + deploy + training + support 1 ปี |
 
-```bash
-cp .env.example .env
-```
+> *ราคาไม่รวม domain/hosting 如果ต้องการติดตั้งเพิ่มเติม เช่น UI customization, training, หรือ migration ข้อมูล คิดเพิ่มตามขนาดงาน*
 
-หรือสร้างไฟล์ `.env` เองด้วยค่าอย่างน้อย:
+---
 
-```bash
-SESSION_SECRET=your-long-random-secret
-NEXT_PUBLIC_APP_URL=http://localhost:3001
-DATABASE_URL=postgresql://...your-prisma-or-postgres-url...
-```
+## ข้อมูลติดต่อ
 
-ค่าที่ควรมี:
+| | |
+|---|---|
+| ชื่อ | **กฤษ (ฆัง)** |
+| โทรศัพท์ | **035-541-9166** |
+| Facebook | [facebook.com/MicrotronicTH](https://www.facebook.com/MicrotronicTH/) |
+| เว็บไซต์ | [www.microtronic.biz](https://www.microtronic.biz) |
 
-- `SESSION_SECRET`: secret สำหรับเซ็น session JWT
-- `NEXT_PUBLIC_APP_URL`: URL สาธารณะของแอป เช่น `http://localhost:3001`
-- `DATABASE_URL`: PostgreSQL connection string ของฐานข้อมูลจริง
+---
 
-### 3. สร้างฐานข้อมูลและ seed ข้อมูลตัวอย่าง
+## สาธิตการใช้งาน (Demo)
 
-```bash
-pnpm db:generate
-pnpm db:push
-pnpm db:seed
-```
-
-คำอธิบาย:
-
-- `db:generate`: generate Prisma Client
-- `db:push`: sync schema กับฐานข้อมูล
-- `db:seed`: insert ข้อมูลตัวอย่าง เช่น user, category, product, table
-
-### 4. รันเซิร์ฟเวอร์
-
-```bash
-pnpm dev
-```
-
-เปิดที่:
-
-- http://localhost:3000
-- หรือถ้าพอร์ต 3000 ถูกใช้อยู่ ให้ใช้ `PORT=3001 pnpm dev`
-
-## บัญชีทดลองที่ใช้ใน seed
+เว็บ demo: `https://micro-menu-online.vercel.app`
 
 | บทบาท | อีเมล | รหัสผ่าน |
 |--------|-------|----------|
-| ผู้ดูแล | `admin@menu.local` | `admin123456` |
-| ครัว | `kitchen@menu.local` | `kitchen123456` |
-| แคชเชียร์ | `cashier@menu.local` | `cashier123456` |
+| ผู้ดูแล (Admin) | admin@menu.local | admin123456 |
+| ครัว (Kitchen) | kitchen@menu.local | kitchen123456 |
+| แคชเชียร์ (Cashier) | cashier@menu.local | cashier123456 |
 
-- แอดมินสามารถเข้าถึงทั้งหน้าจอครัวและแคชเชียร์
-- พนักงานเข้าหน้าพื้นที่ staff ผ่าน `/staff`
+---
 
-## โครงสร้างหลัก
-
-```bash
-app/
-  api/                  # API routes สำหรับ auth, products, orders, reports, upload
-  menu/[tableId]/       # หน้า public สำหรับลูกค้า
-  staff/                # dashboard, products, tables, users, reports
-  receipt/[id]/         # หน้าใบเสร็จ
-components/
-  staff/                # kitchen-board, cashier-board, order modal, shell
-lib/
-  auth/                 # session, rbac, password handling
-  data/                 # menu data access logic
-  db/                   # Prisma DB access layer + schema wrapper
-  realtime.ts           # realtime room utilities
-  supabase/             # optional Supabase compatibility
-prisma/
-  schema.prisma         # Prisma schema หลัก
-public/
-  uploads/              # local upload fallback
-proxy.ts                # route guard สำหรับ staff/login
-```
-
-## การ deploy บน Vercel
-
-1. push code ไปยัง GitHub repo ที่ถูกต้อง
-2. import repo ลง Vercel
-3. ตั้ง environment variables ให้ครบตาม environment ที่ใช้งานจริง
-4. สำหรับ Prisma ตรวจสอบให้ `DATABASE_URL` ตรงกับ database ของ Vercel / Prisma Postgres
-5. deploy และตรวจสอบ logs หากมีปัญหาการเชื่อมต่อหรือ schema
-
-## หมายเหตุสำหรับ production
-
-- เปลี่ยน `SESSION_SECRET` เป็นค่า random ที่ปลอดภัยจริง
-- ใช้ฐานข้อมูลที่เหมาะสมกับ environment (local / preview / production) แยกกัน
-- ก่อน deploy ให้เรียก `pnpm db:push` หรือ migrate ตามที่ต้องการ
-- หากใช้ Supabase สำหรับ realtime/storage ให้แน่ใจว่า environment variable ที่เกี่ยวข้องถูกตั้งให้ตรงตาม project
-
-## สคริปต์ที่ใช้บ่อย
+## วิธีติดตั้ง (สำหรับ Developer)
 
 ```bash
+# 1. ติดตั้ง dependencies
 pnpm install
-pnpm dev
-pnpm build
-pnpm lint
-pnpm typecheck
+
+# 2. ตั้งค่า environment
+cp .env.example .env
+# แก้ไขค่า SESSION_SECRET, NEXT_PUBLIC_APP_URL, DATABASE_URL ใน .env
+
+# 3. สร้างฐานข้อมูล
 pnpm db:generate
 pnpm db:push
 pnpm db:seed
+
+# 4. เริ่มแอป
+pnpm dev
 ```
 
-## ประวัติการเปลี่ยนแปลง
+เปิด http://localhost:3000
 
-- โครงการเริ่มต้นด้วย Supabase-centric stack
-- ปัจจุบันมีการปรับใช้ Prisma ORM + PostgreSQL เป็นโครงสร้างหลักสำหรับการพัฒนาการเชื่อมต่อ database และ deployment บน Vercel
-- บางฟังก์ชันที่อยู่ใน codebase ยังคงมี compatibility สำหรับ Supabase เพื่อให้ใช้งานต่อได้ในช่วง transition
+---
+
+## โครงสร้างโปรเจกต์
+
+```
+app/              → หน้าเว็บ + API routes
+components/       → UI components (kitchen board, cashier board, shell)
+lib/              → business logic, auth, session, data access
+prisma/           → database schema
+public/           → ไฟล์สาธารณะ
+```
+
+---
+
+## หมายเหตุสำหรับ Developer
+
+- Prisma schema (`prisma/schema.prisma`) เป็นแหล่งข้อมูลหลัก
+- กรณี deploy บน Vercel ให้ตั้ง `DATABASE_URL` และ `SESSION_SECRET` ให้ถูกต้อง
+- กรณีใช้งานจริง ควรเปลี่ยนรหัสผ่านเริ่มต้นและตั้ง environment ให้ปลอดภัย
+- รองรับ Supabase (realtime/storage) เป็น fallback option
+
+---
+
+## วัตถุประสงค์
+
+Microtronic Menu Online ออกแบบมาสำหรับผู้ประกอบการที่ต้องการ:
+
+- ลดต้นทุนการจ้างพนักงานรับสั่งอาหาร
+- ลดข้อผิดพลาดจากการรับคำสั่งด้วยมือ
+- เพิ่มความเร็วในการให้บริการ
+- ขยายช่องทางขายผ่านระบบ Digital ที่ใช้งานง่าย
+
+**Microtronic** — ให้บริการระบบธุรกิจและโซลูชันสำหรับร้านอาหารที่ต้องการเปลี่ยนสู่ Digital Ordering System
