@@ -6,7 +6,7 @@ import { formatTime } from "@/lib/format";
 import type { Order } from "@/lib/types";
 
 export default function KitchenBoard({ role }: { role: string }) {
-  const { orders, loading, connected } = useStaffOrders(role);
+  const { orders, loading, connected, updateOrderStatus } = useStaffOrders(role);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +34,9 @@ export default function KitchenBoard({ role }: { role: string }) {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "อัปเดตไม่สำเร็จ");
+        return;
       }
+      updateOrderStatus(id, status);
     } catch {
       setError("เกิดข้อผิดพลาด");
     } finally {

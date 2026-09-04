@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { uid } from "@/lib/utils/uid";
 import { getOrderWithItems, serializeOrder } from "@/lib/data/orders";
-import { emitToKitchen, emitToCashier, emitToTable } from "@/lib/supabase/server";
 
 const PaySchema = z.object({
   orderId: z.string().min(1),
@@ -56,10 +55,6 @@ export async function POST(request: Request) {
 
   const full = await getOrderWithItems(orderId);
   const serialized = await serializeOrder(full!);
-
-  await emitToKitchen({ type: "ORDER_PAID", orderId, tableId: order.tableId, amount });
-  await emitToCashier({ type: "ORDER_PAID", orderId, tableId: order.tableId, amount });
-  await emitToTable(order.tableId, { type: "ORDER_PAID", orderId, tableId: order.tableId, amount });
 
   return NextResponse.json({ order: serialized, payment: { orderId, amount, method } });
 }

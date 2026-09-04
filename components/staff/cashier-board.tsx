@@ -7,7 +7,7 @@ import type { Order } from "@/lib/types";
 import StaffOrderModal from "./order-modal";
 
 export default function CashierBoard({ role }: { role: string }) {
-  const { orders, loading, connected } = useStaffOrders(role);
+  const { orders, loading, connected, updateOrderStatus } = useStaffOrders(role);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [payFor, setPayFor] = useState<Order | null>(null);
 
@@ -97,6 +97,7 @@ export default function CashierBoard({ role }: { role: string }) {
           order={payFor}
           tableNumber={payFor.tableNumber || ""}
           onClose={() => setPayFor(null)}
+          onPaid={() => updateOrderStatus(payFor.id, "paid")}
         />
       )}
     </div>
@@ -132,10 +133,12 @@ function PayModal({
   order,
   tableNumber,
   onClose,
+  onPaid,
 }: {
   order: Order;
   tableNumber: string;
   onClose: () => void;
+  onPaid: () => void;
 }) {
   const [method, setMethod] = useState<"cash" | "card" | "qr">("cash");
   const [submitting, setSubmitting] = useState(false);
@@ -157,6 +160,7 @@ function PayModal({
         return;
       }
       setPaidOrderId(order.id);
+      onPaid();
     } catch {
       setError("เกิดข้อผิดพลาด");
     } finally {

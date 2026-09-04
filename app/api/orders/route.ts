@@ -7,11 +7,6 @@ import {
   getOrderWithItems,
   serializeOrder,
 } from "@/lib/data/orders";
-import {
-  emitToKitchen,
-  emitToCashier,
-  emitToTable,
-} from "@/lib/supabase/server";
 
 const OrderItemSchema = z.object({
   productId: z.string().min(1),
@@ -126,10 +121,6 @@ export async function POST(request: Request) {
 
   const full = await getOrderWithItems(order.id);
   const serialized = await serializeOrder(full!);
-
-  await emitToKitchen({ type: "NEW_ORDER", order: serialized });
-  await emitToCashier({ type: "ORDER_STATUS", orderId: order.id, status: "pending" });
-  await emitToTable(tableId, { type: "NEW_ORDER", order: serialized });
 
   return NextResponse.json({ order: serialized }, { status: 201 });
 }

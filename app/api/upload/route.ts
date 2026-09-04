@@ -2,9 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/rbac";
-import { getSupabaseServer } from "@/lib/supabase/server";
 
-const BUCKET = "product-images";
 const ALLOWED = new Set([
   "image/jpeg",
   "image/png",
@@ -51,19 +49,6 @@ export async function POST(request: Request) {
 
   const ext = EXT[type] || "";
   const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-
-  const supabase = getSupabaseServer();
-  if (supabase) {
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(name, bytes, { contentType: type, upsert: false });
-    if (error) {
-      return NextResponse.json({ error: "อัปโหลดไม่สำเร็จ" }, { status: 500 });
-    }
-
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(name);
-    return NextResponse.json({ url: data.publicUrl }, { status: 201 });
-  }
 
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadDir, { recursive: true });

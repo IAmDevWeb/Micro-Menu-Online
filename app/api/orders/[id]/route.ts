@@ -6,11 +6,6 @@ import {
   getOrderWithItems,
   serializeOrder,
 } from "@/lib/data/orders";
-import {
-  emitToKitchen,
-  emitToCashier,
-  emitToTable,
-} from "@/lib/supabase/server";
 
 const UpdateSchema = z.object({
   status: z.enum(["preparing", "served", "cancelled"]),
@@ -92,16 +87,6 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
 
   const full = await getOrderWithItems(id);
   const serialized = await serializeOrder(full!);
-
-  if (status === "cancelled") {
-    await emitToKitchen({ type: "ORDER_CANCELLED", orderId: id, tableId: order.tableId });
-    await emitToCashier({ type: "ORDER_CANCELLED", orderId: id, tableId: order.tableId });
-    await emitToTable(order.tableId, { type: "ORDER_CANCELLED", orderId: id, tableId: order.tableId });
-  } else {
-    await emitToKitchen({ type: "ORDER_STATUS", orderId: id, status });
-    await emitToCashier({ type: "ORDER_STATUS", orderId: id, status });
-    await emitToTable(order.tableId, { type: "ORDER_STATUS", orderId: id, status });
-  }
 
   return NextResponse.json({ order: serialized });
 }

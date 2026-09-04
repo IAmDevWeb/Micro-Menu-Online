@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { formatBaht } from "@/lib/format";
-import { subscribeRoom } from "@/lib/supabase/client";
-import { type RealtimeEvent } from "@/lib/realtime";
 
 type Product = {
   id: string;
@@ -106,36 +104,33 @@ export default function CustomerMenu({
   }, [table.id]);
 
   useEffect(() => {
-    const handler = (payload: RealtimeEvent) => {
-      if (payload.type === "NEW_ORDER") {
-        const order = payload.order as unknown as Order;
+    let mounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    async function pollStatus() {
+      try {
+        const res = await fetch(`/api/orders?tableId=${table.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+        const latest: Order[] = data.orders || [];
         setOrders((prev) => {
-          const exists = prev.some((o) => o.id === order.id);
-          return exists ? prev : [order, ...prev];
+          const map = new Map(prev.map((o) => [o.id, o]));
+          for (const o of latest) map.set(o.id, o);
+          return Array.from(map.values());
         });
-      } else if (payload.type === "ORDER_STATUS" || payload.type === "ORDER_PAID") {
-        setOrders((prev) =>
-          prev.map((o) => {
-            if (o.id !== payload.orderId) return o;
-            const status =
-              payload.type === "ORDER_PAID" ? "paid" : payload.status;
-            return {
-              ...o,
-              status,
-              paidAt: status === "paid" ? new Date().toISOString() : o.paidAt,
-            };
-          })
-        );
-      } else if (payload.type === "ORDER_CANCELLED") {
-        setOrders((prev) =>
-          prev.map((o) =>
-            o.id === payload.orderId ? { ...o, status: "cancelled" } : o
-          )
-        );
+      } catch {
+        // ignore transient errors
       }
+    }
+
+    pollStatus();
+    timer = setInterval(pollStatus, 5000);
+
+    return () => {
+      mounted = false;
+      if (timer) clearInterval(timer);
     };
-    const unsubscribe = subscribeRoom(`table:${table.id}`, handler);
-    return unsubscribe;
   }, [table.id]);
 
   const placeOrder = useCallback(
