@@ -182,9 +182,10 @@ function ProductForm({
   const preview = file ? URL.createObjectURL(file) : imageUrl;
 
   async function uploadImage(f: File): Promise<string> {
-    const fd = new FormData();
-    fd.append("file", f);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const res = await fetch(
+      `/api/upload?filename=${encodeURIComponent(f.name)}`,
+      { method: "POST", body: f }
+    );
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "อัปโหลดไม่สำเร็จ");
     return data.url;
