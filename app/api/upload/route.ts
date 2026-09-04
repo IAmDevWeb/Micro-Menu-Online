@@ -2,22 +2,7 @@ import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { requireRole } from "@/lib/auth/rbac";
 
-const ALLOWED = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  "image/avif",
-]);
-const MAX_SIZE = 5 * 1024 * 1024;
-
-const EXT: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "image/avif": ".avif",
-};
+const ALLOWED_EXT = new Set(["jpg", "jpeg", "png", "webp", "gif", "avif"]);
 
 export const dynamic = "force-dynamic";
 
@@ -30,37 +15,34 @@ export async function POST(request: Request) {
     );
   }
 
-  const form = await request.formData().catch(() => null);
-  const file = form?.get("file");
-  if (!file || typeof file === "string" || !("arrayBuffer" in file)) {
+  const { searchParams } = new URL(request.url);
+  const filename = searchParams.get("filename");
+  if (!filename) {
+    return NextResponse.json({ error: "ไม่พบชื่อไฟล์" }, { status: 400 });
+  }
+
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  if (!ALLOWED_EXT.has(ext)) {
+    return NextResponse.json(
+      { error: "ไฟล์ไม่ใช่รูปภาพที่รองรับ" },
+      { status: 400 }
+    );
+  }
+
+  if (!request.body) {
     return NextResponse.json({ error: "ไม่พบไฟล์" }, { status: 400 });
   }
 
-  const type = file.type;
-  if (!ALLOWED.has(type)) {
-    return NextResponse.json({ error: "ไฟล์ไม่ใช่รูปภาพที่รองรับ" }, { status: 400 });
-  }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes.byteLength > MAX_SIZE) {
-    return NextResponse.json({ error: "ไฟล์ใหญ่เกิน 5MB" }, { status: 400 });
-  }
-
-  const ext = EXT[type] || "";
-  const name = `product-images/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+  const name = `product-images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   try {
-    const { url } = await put(name, Buffer.from(bytes), {
+    const blob = await put(name, request.body, {
       access: "public",
       addRandomSuffix: false,
-      contentType: type,
     });
-    return NextResponse.json({ url }, { status: 201 });
+    return NextResponse.json(blob, { status: 201 });
   } catch (e) {
     console.error("[upload] put failed:", e);
-    return NextResponse.json(
-      { error: "อัปโหลดไม่สำเร็จ" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "อัปโหลดไม่สำเร็จ" }, { status: 500 });
   }
 }
