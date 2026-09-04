@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/lib/db";
+import { products } from "@/lib/db/schema";
+import { requireRole } from "@/lib/auth/rbac";
+
+type RouteCtx = { params: Promise<{ id: string }> };
+
+const UpdateSchema = z.object({
+  categoryId: z.string().min(1).optional(),
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).optional(),
+  price: z.number().nonnegative().optional(),
+  imageUrl: z.string().optional().nullable(),
+  active: z.boolean().optional(),
+});
+
+export async function PATCH(request: Request, ctx: RouteCtx) {
+  const guard = await requireRole("admin");
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.error === "unauthorized" ? 401 : 403 });
+  }
+  const { id } = await ctx.params;
+  const body = await request.json().catch(() => null);
+  const parsed = UpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
+  }
+  const updated = (
+    await db
+      .update(products)
+      .set(parsed.data)
+      .where(eq(products.id, id))
+      .returning()
+  )[0];
+  return NextResponse.json({ product: updated });
+}
+
+export async function DELETE(_req: Request, ctx: RouteCtx) {
+  const guard = await requireRole("admin");
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.error }, { status: guard.error === "unauthorized" ? 401 : 403 });
+  }
+  const { id } = await ctx.params;
+  await db.delete(schema.products).where(eq(products.id, id));
+  return NextResponse.json({ ok: true });
+}

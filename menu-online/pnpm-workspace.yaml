@@ -1,0 +1,6 @@
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+  sharp: false
+  unrs-resolver: false
+storeDir: /home/neon13/snap/code/255/.local/share/pnpm/store/v11
