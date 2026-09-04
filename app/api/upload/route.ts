@@ -56,7 +56,8 @@ export async function POST(request: Request) {
       contentType: type,
     });
     return NextResponse.json({ url }, { status: 201 });
-  } catch {
+  } catch (e) {
+    console.error("[upload] put failed:", e);
     return NextResponse.json(
       { error: "อัปโหลดไม่สำเร็จ" },
       { status: 500 }
