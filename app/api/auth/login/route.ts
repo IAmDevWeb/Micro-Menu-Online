@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 
@@ -19,8 +17,8 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
-  const user = await db.query.users.findFirst({
-    where: eq(users.email, email.toLowerCase()),
+  const user = await prisma.user.findFirst({
+    where: { email: email.toLowerCase() },
   });
 
   if (!user || !user.active) {

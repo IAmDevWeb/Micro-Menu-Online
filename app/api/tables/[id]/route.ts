@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
-import { tables } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { generateQrToken } from "@/lib/utils/uid";
 
@@ -28,13 +26,10 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
   if (parsed.data.qrToken && parsed.data.qrToken === "reset") {
     data.qrToken = generateQrToken();
   }
-  const updated = (
-    await db
-      .update(tables)
-      .set(data)
-      .where(eq(tables.id, id))
-      .returning()
-  )[0];
+  const updated = await prisma.table.update({
+    where: { id },
+    data,
+  });
   return NextResponse.json({ table: updated });
 }
 
@@ -44,6 +39,6 @@ export async function DELETE(_req: Request, ctx: RouteCtx) {
     return NextResponse.json({ error: guard.error }, { status: guard.error === "unauthorized" ? 401 : 403 });
   }
   const { id } = await ctx.params;
-  await db.delete(schema.tables).where(eq(tables.id, id));
+  await prisma.table.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

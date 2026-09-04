@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
-import { orders, orderItems } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import {
   getOrderWithItems,
@@ -73,23 +71,22 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     );
   }
 
-  await db
-    .update(orders)
-    .set({
+  await prisma.order.update({
+    where: { id },
+    data: {
       status,
-      updatedAt: new Date().toISOString(),
       ...(status === "cancelled"
-        ? { cancelledAt: new Date().toISOString(), cancelledById: guard.user.id }
+        ? { cancelledAt: new Date(), cancelledById: guard.user.id }
         : {}),
-    })
-    .where(eq(orders.id, id));
+    },
+  });
 
   if (items && items.length > 0) {
     for (const it of items) {
-      await db
-        .update(orderItems)
-        .set({ status: it.status })
-        .where(eq(orderItems.id, it.id));
+      await prisma.orderItem.updateMany({
+        where: { id: it.id },
+        data: { status: it.status },
+      });
     }
   }
 
@@ -115,6 +112,6 @@ export async function DELETE(_req: Request, ctx: RouteCtx) {
     return NextResponse.json({ error: guard.error }, { status: guard.error === "unauthorized" ? 401 : 403 });
   }
   const { id } = await ctx.params;
-  await db.delete(schema.orders).where(eq(orders.id, id));
+  await prisma.order.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { asc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { tables } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { uid, generateQrToken } from "@/lib/utils/uid";
 
@@ -11,10 +9,9 @@ export async function GET() {
   if (!guard.ok) {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
-  const rows = await db
-    .select()
-    .from(tables)
-    .orderBy(asc(tables.tableNumber));
+  const rows = await prisma.table.findMany({
+    orderBy: { tableNumber: "asc" },
+  });
   return NextResponse.json({ tables: rows });
 }
 
@@ -32,11 +29,8 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
   }
-  const row = (
-    await db
-      .insert(tables)
-      .values({ id: uid(), tableNumber: parsed.data.tableNumber, qrToken: generateQrToken() })
-      .returning()
-  )[0];
+  const row = await prisma.table.create({
+    data: { id: uid(), tableNumber: parsed.data.tableNumber, qrToken: generateQrToken() },
+  });
   return NextResponse.json({ table: row }, { status: 201 });
 }

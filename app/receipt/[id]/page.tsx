@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
-import { db } from "@/lib/db";
-import { payments } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { getOrderWithItems } from "@/lib/data/orders";
 import { formatBaht, formatTime, formatDate } from "@/lib/format";
 import PrintButton from "@/components/print-button";
@@ -23,9 +21,9 @@ export default async function ReceiptPage({
   const order = await getOrderWithItems(id);
   if (!order) redirect("/staff/dashboard");
 
-  const payment = await db.query.payments.findFirst({
-    where: eq(payments.orderId, id),
-    with: { receivedBy: true },
+  const payment = await prisma.payment.findFirst({
+    where: { orderId: id },
+    include: { receivedBy: true },
   });
 
   const wasCancelled = order.status === "cancelled";

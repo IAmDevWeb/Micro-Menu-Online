@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { asc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { categories } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { uid } from "@/lib/utils/uid";
 
 export async function GET() {
-  const rows = await db.select().from(categories).orderBy(asc(categories.sortOrder));
+  const rows = await prisma.category.findMany({
+    orderBy: { sortOrder: "asc" },
+  });
   return NextResponse.json({ categories: rows });
 }
 
@@ -26,11 +26,8 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
   }
-  const row = (
-    await db
-      .insert(categories)
-      .values({ id: uid(), name: parsed.data.name, sortOrder: parsed.data.sortOrder })
-      .returning()
-  )[0];
+  const row = await prisma.category.create({
+    data: { id: uid(), name: parsed.data.name, sortOrder: parsed.data.sortOrder },
+  });
   return NextResponse.json({ category: row }, { status: 201 });
 }

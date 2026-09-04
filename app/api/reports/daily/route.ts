@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { sql, eq, desc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { payments, orders, orderItems, tables } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 
 export async function GET(request: Request) {
@@ -17,84 +15,78 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "รูปแบบวันที่ไม่ถูกต้อง" }, { status: 400 });
   }
 
-  // total revenue from payments on that day
-  const revRow = (
-    await db
-      .select({ total: sql<number>`COALESCE(SUM(${payments.amount}), 0)` })
-      .from(payments)
-      .where(sql`date(${payments.paidAt}) = ${date}`)
-  )[0];
+  const start = new Date(`${date}T00:00:00.000Z`);
+  const end = new Date(`${date}T23:59:59.999Z`);
+  const dayRange = { gte: start, lte: end };
 
-  // paid order count
-  const orderCountRow = (
-    await db
-      .select({ n: sql<number>`COUNT(*)` })
-      .from(orders)
-      .where(sql`${orders.status} = 'paid' AND date(${orders.paidAt}) = ${date}`)
-  )[0];
+  const [paymentAgg, byMethodRows, paidOrders] = await Promise.all([
+    prisma.payment.aggregate({
+      where: { paidAt: dayRange },
+      _sum: { amount: true },
+    }),
+    prisma.payment.groupBy({
+      by: ["method"],
+      where: { paidAt: dayRange },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
+    prisma.order.findMany({
+      where: { status: "paid", paidAt: dayRange },
+      include: { table: true },
+      orderBy: { paidAt: "desc" },
+    }),
+  ]);
 
-  // by method
-  const byMethod = await db
-    .select({
-      method: payments.method,
-      total: sql<number>`SUM(${payments.amount})`,
-      count: sql<number>`COUNT(*)`,
-    })
-    .from(payments)
-    .where(sql`date(${payments.paidAt}) = ${date}`)
-    .groupBy(payments.method);
+  const orderCount = paidOrders.length;
 
-  // per table (paid orders)
-  const perTable = await db
-    .select({
-      tableId: orders.tableId,
-      tableNumber: tables.tableNumber,
-      total: sql<number>`SUM(${orders.total})`,
-      count: sql<number>`COUNT(*)`,
-    })
-    .from(orders)
-    .innerJoin(tables, eq(orders.tableId, tables.id))
-    .where(sql`${orders.status} = 'paid' AND date(${orders.paidAt}) = ${date}`)
-    .groupBy(orders.tableId, tables.tableNumber);
+  const perTableMap = new Map<string, { tableId: string; tableNumber: string; total: number; count: number }>();
+  for (const o of paidOrders) {
+    const prev = perTableMap.get(o.tableId) || {
+      tableId: o.tableId,
+      tableNumber: o.table?.tableNumber ?? "",
+      total: 0,
+      count: 0,
+    };
+    prev.total += o.total;
+    prev.count += 1;
+    perTableMap.set(o.tableId, prev);
+  }
 
-  // list of paid orders for detail
-  const paidOrderRows = await db
-    .select({
-      id: orders.id,
-      tableId: orders.tableId,
-      tableNumber: tables.tableNumber,
-      total: orders.total,
-      paidAt: orders.paidAt,
-    })
-    .from(orders)
-    .innerJoin(tables, eq(orders.tableId, tables.id))
-    .where(sql`${orders.status} = 'paid' AND date(${orders.paidAt}) = ${date}`)
-    .orderBy(desc(orders.paidAt));
-
-  // top products from order items of paid orders that day
-  const topProducts = await db
-    .select({
-      productName: orderItems.productName,
-      qty: sql<number>`SUM(${orderItems.qty})`,
-      revenue: sql<number>`SUM(${orderItems.price} * ${orderItems.qty})`,
-    })
-    .from(orderItems)
-    .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(sql`${orders.status} = 'paid' AND date(${orders.paidAt}) = ${date}`)
-    .groupBy(orderItems.productName)
-    .orderBy(sql`SUM(${orderItems.qty}) DESC`);
+  const paidOrderIds = paidOrders.map((o) => o.id);
+  let topProducts: { productName: string; qty: number; revenue: number }[] = [];
+  if (paidOrderIds.length > 0) {
+    const grouped = await prisma.orderItem.groupBy({
+      by: ["productName"],
+      where: { orderId: { in: paidOrderIds } },
+      _sum: { qty: true, price: true },
+    });
+    grouped.sort((a, b) => (b._sum.qty ?? 0) - (a._sum.qty ?? 0));
+    topProducts = grouped
+      .map((g) => ({
+        productName: g.productName,
+        qty: g._sum.qty ?? 0,
+        revenue: (g._sum.price ?? 0) * (g._sum.qty ?? 0),
+      }))
+      .slice(0, 10);
+  }
 
   return NextResponse.json({
     date,
-    totalRevenue: revRow?.total ?? 0,
-    orderCount: orderCountRow?.n ?? 0,
-    byMethod: byMethod.map((m) => ({
+    totalRevenue: paymentAgg._sum.amount ?? 0,
+    orderCount,
+    byMethod: byMethodRows.map((m) => ({
       method: m.method,
-      total: m.total,
-      count: m.count,
+      total: m._sum.amount ?? 0,
+      count: m._count._all,
     })),
-    perTable,
-    orders: paidOrderRows,
+    perTable: [...perTableMap.values()],
+    orders: paidOrders.map((o) => ({
+      id: o.id,
+      tableId: o.tableId,
+      tableNumber: o.table?.tableNumber ?? "",
+      total: o.total,
+      paidAt: o.paidAt,
+    })),
     topProducts,
   });
 }

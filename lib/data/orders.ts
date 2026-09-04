@@ -1,20 +1,19 @@
-import { and, eq, desc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 
 export async function getOrderWithItems(orderId: string) {
-  const order = await db.query.orders.findFirst({
-    where: eq(orders.id, orderId),
-    with: {
+  return prisma.order.findFirst({
+    where: { id: orderId },
+    include: {
       table: true,
       createdBy: true,
       items: true,
     },
   });
-  return order;
 }
 
-export async function serializeOrder(order: NonNullable<Awaited<ReturnType<typeof getOrderWithItems>>>) {
+export type OrderWithItems = NonNullable<Awaited<ReturnType<typeof getOrderWithItems>>>;
+
+export async function serializeOrder(order: OrderWithItems) {
   return {
     id: order.id,
     tableId: order.tableId,
@@ -41,12 +40,11 @@ export async function serializeOrder(order: NonNullable<Awaited<ReturnType<typeo
 }
 
 export async function listOrdersByTable(tableId: string) {
-  const rows = await db.query.orders.findMany({
-    where: and(
-      eq(orders.tableId, tableId),
-      eq(orders.status, "paid")
-    ),
-    orderBy: desc(orders.createdAt),
+  return prisma.order.findMany({
+    where: {
+      tableId,
+      status: "paid",
+    },
+    orderBy: { createdAt: "desc" },
   });
-  return rows;
 }

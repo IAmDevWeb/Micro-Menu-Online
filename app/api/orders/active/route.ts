@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { inArray } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { orders } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { serializeOrder } from "@/lib/data/orders";
+import type { OrderStatus } from "@/lib/db";
 
-const ACTIVE_STATUSES = {
-  kitchen: ["pending", "preparing"] as const,
-  cashier: ["pending", "preparing", "served"] as const,
-  admin: ["pending", "preparing", "served"] as const,
+const ACTIVE_STATUSES: Record<string, OrderStatus[]> = {
+  kitchen: ["pending", "preparing"],
+  cashier: ["pending", "preparing", "served"],
+  admin: ["pending", "preparing", "served"],
 };
 
 export async function GET() {
@@ -17,10 +16,10 @@ export async function GET() {
     return NextResponse.json({ error: guard.error }, { status: 401 });
   }
 
-  const activeStatuses = ACTIVE_STATUSES[guard.user.role] ?? ["pending", "preparing"];
-  const rows = await db.query.orders.findMany({
-    where: inArray(orders.status, activeStatuses),
-    with: { items: true, table: true, createdBy: true },
+  const activeStatuses = ACTIVE_STATUSES[guard.user.role] ?? ["pending", "preparing"] as OrderStatus[];
+  const rows = await prisma.order.findMany({
+    where: { status: { in: activeStatuses } },
+    include: { items: true, table: true, createdBy: true },
   });
 
   const serialized = await Promise.all(rows.map(serializeOrder));

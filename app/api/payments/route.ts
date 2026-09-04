@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { payments, orders } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { uid } from "@/lib/utils/uid";
 import { getOrderWithItems, serializeOrder } from "@/lib/data/orders";
@@ -41,18 +39,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "คำสั่งซื้อถูกยกเลิกแล้ว" }, { status: 400 });
   }
 
-  await db.insert(payments).values({
-    id: uid(),
-    orderId,
-    amount,
-    method,
-    receivedById: guard.user.id,
+  await prisma.payment.create({
+    data: {
+      id: uid(),
+      orderId,
+      amount,
+      method,
+      receivedById: guard.user.id,
+    },
   });
 
-  await db
-    .update(orders)
-    .set({ status: "paid", paidAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
-    .where(eq(orders.id, orderId));
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: "paid", paidAt: new Date() },
+  });
 
   const full = await getOrderWithItems(orderId);
   const serialized = await serializeOrder(full!);

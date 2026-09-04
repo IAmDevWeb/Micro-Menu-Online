@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { asc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { users } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 import { hashPassword } from "@/lib/auth/password";
 import { uid } from "@/lib/utils/uid";
@@ -12,17 +10,17 @@ export async function GET() {
   if (!guard.ok) {
     return NextResponse.json({ error: guard.error }, { status: guard.error === "unauthorized" ? 401 : 403 });
   }
-  const rows = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role,
-      active: users.active,
-      createdAt: users.createdAt,
-    })
-    .from(users)
-    .orderBy(asc(users.name));
+  const rows = await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      active: true,
+      createdAt: true,
+    },
+    orderBy: { name: "asc" },
+  });
   return NextResponse.json({ users: rows });
 }
 
@@ -44,18 +42,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
   }
   const passwordHash = await hashPassword(parsed.data.password);
-  const row = (
-    await db
-      .insert(users)
-      .values({
-        id: uid(),
-        name: parsed.data.name,
-        email: parsed.data.email.toLowerCase(),
-        passwordHash,
-        role: parsed.data.role,
-      })
-      .returning()
-  )[0];
+  const row = await prisma.user.create({
+    data: {
+      id: uid(),
+      name: parsed.data.name,
+      email: parsed.data.email.toLowerCase(),
+      passwordHash,
+      role: parsed.data.role,
+    },
+  });
   return NextResponse.json(
     { user: { id: row.id, name: row.name, email: row.email, role: row.role, active: row.active } },
     { status: 201 }

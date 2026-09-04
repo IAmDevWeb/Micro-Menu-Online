@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { orders, orderItems, products, tables } from "@/lib/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { prisma } from "@/lib/db";
 import { uid } from "@/lib/utils/uid";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -35,9 +33,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "ต้องระบุ tableId" }, { status: 400 });
   }
 
-  const rows = await db.query.orders.findMany({
-    where: eq(orders.tableId, tableId),
-    with: { items: true, table: true, createdBy: true },
+  const rows = await prisma.order.findMany({
+    where: { tableId },
+    include: { items: true, table: true, createdBy: true },
   });
   const serialized = [];
   for (const row of rows) {
@@ -58,8 +56,8 @@ export async function POST(request: Request) {
   }
   const { tableId, source, customerNote, items } = parsed.data;
 
-  const table = await db.query.tables.findFirst({
-    where: eq(tables.id, tableId),
+  const table = await prisma.table.findFirst({
+    where: { id: tableId },
   });
   if (!table) {
     return NextResponse.json({ error: "ไม่พบโต๊ะ" }, { status: 404 });
@@ -75,10 +73,9 @@ export async function POST(request: Request) {
   }
 
   const productIds = items.map((i) => i.productId);
-  const allRows = await db
-    .select()
-    .from(products)
-    .where(inArray(products.id, productIds));
+  const allRows = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+  });
 
   let total = 0;
   type Resolved = {
@@ -106,29 +103,26 @@ export async function POST(request: Request) {
   }
 
   const orderId = uid();
-  const order = (
-    await db
-      .insert(orders)
-      .values({
-        id: orderId,
-        tableId,
-        status: "pending",
-        source,
-        customerNote: customerNote || null,
-        createdById,
-        total,
-      })
-      .returning()
-  )[0];
+  const order = await prisma.order.create({
+    data: {
+      id: orderId,
+      tableId,
+      status: "pending",
+      source,
+      customerNote: customerNote || null,
+      createdById,
+      total,
+    },
+  });
 
-  await db.insert(orderItems).values(
-    (resolvedItems as Resolved[]).map((r) => ({
+  await prisma.orderItem.createMany({
+    data: (resolvedItems as Resolved[]).map((r) => ({
       id: uid(),
       orderId,
       ...r,
-      status: "pending" as const,
-    }))
-  );
+      status: "pending",
+    })),
+  });
 
   const full = await getOrderWithItems(order.id);
   const serialized = await serializeOrder(full!);

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
-import { db, schema } from "@/lib/db";
-import { categories } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/rbac";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -23,13 +21,10 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
   if (!parsed.success) {
     return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง" }, { status: 400 });
   }
-  const updated = (
-    await db
-      .update(categories)
-      .set(parsed.data)
-      .where(eq(categories.id, id))
-      .returning()
-  )[0];
+  const updated = await prisma.category.update({
+    where: { id },
+    data: parsed.data,
+  });
   return NextResponse.json({ category: updated });
 }
 
@@ -39,6 +34,6 @@ export async function DELETE(_req: Request, ctx: RouteCtx) {
     return NextResponse.json({ error: guard.error }, { status: guard.error === "unauthorized" ? 401 : 403 });
   }
   const { id } = await ctx.params;
-  await db.delete(schema.categories).where(eq(categories.id, id));
+  await prisma.category.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

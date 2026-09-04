@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { payments } from "@/lib/db/schema";
+import { prisma } from "@/lib/db";
 import { getOrderWithItems, serializeOrder } from "@/lib/data/orders";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -13,16 +11,16 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     return NextResponse.json({ error: "ไม่พบคำสั่งซื้อ" }, { status: 404 });
   }
 
-  const payment = await db.query.payments.findFirst({
-    where: eq(payments.orderId, id),
-    with: { receivedBy: true },
+  const payment = await prisma.payment.findFirst({
+    where: { orderId: id },
+    include: { receivedBy: true },
   });
 
   const serialized = await serializeOrder(order);
 
   return NextResponse.json({
     receipt: {
-      receiptNo: id.split("-")[0] + order.createdAt.slice(11, 19).replace(/:/g, ""),
+      receiptNo: id.split("-")[0] + order.createdAt.toISOString().slice(11, 19).replace(/:/g, ""),
       order: serialized,
       tableNumber: order.table?.tableNumber ?? "",
       paidAt: order.paidAt,
